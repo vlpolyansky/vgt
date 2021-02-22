@@ -99,4 +99,6 @@ The output npz file contains the following matrices:
 }
 ```
 
-# Licence
+## License
+The project is available under the [MIT](https://opensource.org/licenses/MIT) license.
+
