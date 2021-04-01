@@ -1,8 +1,8 @@
 # Voronoi Graph Traversal
 
-## Introduction
+## Project goal
 
-The goal of this project is to alleviate the high computational cost of Voronoi diagram and Delaunay tessellation constructions in high dimensions. This can allow some new applications of geometric methods which utilize these structures on more complex data. 
+VGT methodology is designed to alleviate the high computational cost of Voronoi diagram and Delaunay tessellation constructions in high dimensions. This can allow some new applications of geometric methods which utilize these structures on more complex data. 
 
 The project makes use of an idea of a graph traversal, or marching, over a Voronoi graph (i.e. 1-skeleton of a Voronoi diagram) without its explicit computation, while extracting required information about the dual of the visited vertices.
 
@@ -15,19 +15,33 @@ We demonstrate the first applications of this methodology in our KDD'20 submissi
 - [x] Delaunay k-skeleton extraction (`approx_delaunay.cpp`)
 - [x] Piecewise-linear interpolation (`interpolate.cpp`)
 - [ ] Geometric density estimation
-- [ ] Power diagrams (i.e. additive weighting)
+- [ ] Power diagrams (i.e. weighted Voronoi diagrams)
 - [ ] Non-Euclidean/Riemannian metric spaces (e.g. hyperspherical)
 
 Also, `vgt/extra` contains a few helper scripts for some experiments from the paper above.
 
+## Related projects
+ - **VoroCrust** ([https://vorocrust.sandia.gov/](https://vorocrust.sandia.gov/)) <br>
+   A way of obtaining a Delaunay graph approximation via an non-decreasing subgraph sequence in arbitrarily high dimensions without a full explicit construction was first introduced by *Scott A. Mitchell, Mohamed S. Ebeida et al.* in [Spoke-Darts for High-Dimensional Blue-Noise Sampling](https://dl.acm.org/doi/10.1145/3194657). In the referenced work, graph approximations have their edges sampled according to their importance, i.e. angular sizes, while the VGT performs a close-to-uniform sampling of simplices, independent from the Voronoi diagram geometry. <br>
+   <br>
+   
+ - **Qhull** ([http://www.qhull.org/](http://www.qhull.org/)) <br>
+   Qhull has always been the standard tool to compute Voronoi and Delaunay tessellations fast and explicitly in arbitrary dimensions. The exact computations of Qhull will likely be more advantageous when the dimensionality of data is small (e.g. up to 6 dimensions) compared to the VGT. The main profit of the VGT methodology comes in medium-dimensional data, when full reconstructions are no longer feasible or require excessive amount of time.
+
 ## Technical details
 ### Dependencies
-- C++17, cmake, make
-- zlib 1.2.11 (required by cnpy)
+- C++17 (g++ compiler), cmake, make
+- [zlib](https://zlib.net/) (required by cnpy, tested on version 1.2.11)
+- [Eigen3](https://eigen.tuxfamily.org/) (linear algebra, tested on version 3.3.7)
 - (_Recommended_) OpenMP (enable parallel computations)
 
+As an example, the following line should install all dependencies on a clean Ubuntu 20.04 system:
+
+```shell
+sudo apt install g++ make cmake zlib1g-dev libeigen3-dev libomp-dev
+```
+
 Already included and do not require installation:
-- [Eigen](https://eigen.tuxfamily.org/) for linear algebra
 - [cnpy](https://github.com/rogersce/cnpy) to read numpy files in C++
 - [argparse](https://github.com/p-ranav/argparse) for command line argument parsing
 - [tqdm](https://github.com/tqdm/tqdm.cpp) for a progress line bar during the computations
@@ -43,7 +57,7 @@ You can choose to pass additional preprocessor parameters to _cmake_ to optimize
 <br>`-DCMAKE_CXX_FLAGS="-D<key>=<value>"`. The following keys are available:
 - `DIMENSIONALITY` If you have a fixed dimensionality of your data, then, following the suggestions from Eigen about [fixed size matrices](https://eigen.tuxfamily.org/dox/classEigen_1_1Matrix.html#fixedsize), you can compile the sources for that specific dimensionality to potentially speed up the computations. Default dimensionality used is `Eigen::Dynamic`.
 - `FTYPE` By default, all computations are performed in `long double`. However, if you want to use some other floating-point type you can pass the corresponding flag to _cmake_, for example `-DFTYPE=double`. Be prepared that by using `double` or `float`, the numeric instability may drastically increase in high-dimensional spaces. You can control it by looking at the number of failed validations after running an algorithm.<p>
-You may also opt to use multiple-precision arithmetics libraries, such as [MPIR](http://www.mpir.org/) or [GMP](https://gmplib.org/). Such libraries are not included in this package, so you would need to include them manually and update the line `using ftype = long double;` in `utils.h` with your preferred floating-point type. Using these libraries would allow one to achieve a desired numeric stability at the cost of a slower running time. 
+You may also opt to use multiple-precision arithmetics libraries, such as [MPIR](http://www.mpir.org/) or [GMP](https://gmplib.org/). Such libraries are not included in this package, so you would need to include them manually and update the line `using ftype = long double;` in `vgt/utils.h` with your preferred floating-point type. Using these libraries would allow one to achieve a desired numeric stability at the cost of a slower running time. 
 
 ### Executables
 All executables have a `-h` command line argument to show an up-to-date information about the available command line arguments.

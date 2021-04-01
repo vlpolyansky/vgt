@@ -136,7 +136,8 @@ int main(int argc, char **argv) {
                 {
                     all_indices.push_back(i);
                     all_simplices.insert(all_simplices.end(), vertex.dual.begin(), vertex.dual.end());
-                    all_coefficients.insert(all_coefficients.end(), coefficients.begin(), coefficients.end());
+                    all_coefficients.insert(all_coefficients.end(),
+                                            coefficients.data(), coefficients.data() + coefficients.size());
                     all_estimates.push_back(estimate);
                 }
             }
