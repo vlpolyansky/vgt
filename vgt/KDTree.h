@@ -17,6 +17,10 @@ public:
     int find_nn(const dvector &x, ftype *best_dist_sqr, ftype margin_sqr = -1,
                 const vec<int> &ignore = vec<int>()) const;
 
+    pNode get_containing_node(const dvector &x) const;
+
+    void update_inserted_points();
+
 private:
     pNode build_tree(int l, int r, int depth);
     void find_nn(const dvector &x, pNode node, int *best, ftype *best_dist_sqr,
@@ -42,11 +46,14 @@ private:
         Node(int dim, ftype m);
 
         int lidx, ridx;
+        vec<int> extra;
 
         int dim;
         ftype m;
 
         pNode left = -1, right = -1;
+
+        int size();
     };
 };
 

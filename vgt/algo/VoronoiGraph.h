@@ -3,10 +3,12 @@
 #include "../utils.h"
 #include "../RandomEngine.h"
 #include "../KDTree.h"
+#include "kernels.h"
 
-enum RayStrategyType {
-    BRUTE_FORCE = 0,
-    BIN_SEARCH = 1
+enum DataType {
+    EUCLIDEAN = 0,
+    TOROIDAL = 1,
+    SPHERICAL = 2
 };
 
 class VoronoiGraph {
@@ -22,18 +24,22 @@ public:
 
     static const Polytope NONE;
 
-    explicit VoronoiGraph(RayStrategyType strategy = BRUTE_FORCE);
+    explicit VoronoiGraph(RayStrategyType strategy = BRUTE_FORCE, DataType data_type = EUCLIDEAN);
 
     /**
      * Check whether the polytope is a Voronoi vertex, i.e. is 0-dim.
      */
     bool is_vertex(const Polytope &p) const;
 
+    void initialize(const dmatrix &points, ptr<Bounds> bounds = nullptr);
+
     /**
-     * Read data from a .npy file. Also initializes a KD-tree on the data.
+     * Read data from a .npy file. Also initializes the data kernel.
      * @param filename
      */
-    void read_points(const std::string &filename);
+    void read_points(const std::string &filename, ptr<Bounds> bounds = nullptr);
+
+    void insert(const dmatrix &new_points);
 
     /**
      * Perform a descent to obtain a random Voronoi vertex
@@ -45,6 +51,12 @@ public:
     Polytope retrieve_vertex_nearby(int point_idx, RandomEngine &re) const;
 
     /**
+     * Returns the index of a generator of a Voronoi cell that contains the given point.
+     * Equivalent to the nearest neighbor lookup.
+     */
+    int get_containing_voronoi_cell(const dvector &ref) const;
+
+    /**
      * Perform a descent to obtain a random Voronoi vertex
      * of a Voronoi cell containing the reference point.
      * Returns NONE if didn't succeed (e.g. a numeric precision issue).
@@ -54,6 +66,8 @@ public:
      */
     Polytope retrieve_vertex_nearby(const dvector &ref, RandomEngine &re, int nearest_idx = -1) const;
 
+    vec<Polytope> retrieve_vertices_nearby(const dmatrix &ref_mat, RandomEngineMultithread &re, vec<int> nearest_idx_vec) const;
+
     /**
      * Perform a visibility walk from a random nearby Voronoi vertex
      * to obtain another vertex, the dual of which (a Delaunay d-simplex)
@@ -62,6 +76,9 @@ public:
      * @param coordinates (optional) returns barycentric coordinates of the point in the simplex
      */
     Polytope retrieve_vertex(const dvector &point, RandomEngine &re, svector *coordinates = nullptr) const;
+
+    vec<Polytope> retrieve_vertices(const dmatrix &queries, RandomEngineMultithread &re,
+                                    vec<svector> *coordinates = nullptr) const;
 
     /**
      * Returns a neighbor of a vertex in the Voronoi graph at a given index.
@@ -75,11 +92,19 @@ public:
      */
     vec<Polytope> get_neighbors(const Polytope &v, RandomEngine &re) const;
 
+    vec<vec<Polytope>> get_neighbors(const vec<Polytope> &vertices, RandomEngineMultithread &re) const;
+
+    vec<Polytope> get_neighbors(const vec<Polytope> &vertices, const vec<int> &indices,
+                                RandomEngineMultithread &re) const;
+
     /**
      * Samples a point uniformly on a (k-1)-sphere within the provided
      * k-dimensional polytope and cast a ray in that direction from
      * the reference point of the polytope. The method returns a face
      * of the polytope, or NONE in case of an infinite direction.
+     *
+     * `direction` can be given as a `re.rand_on_sphere()` and does not have
+     * to lie within the polytope (though, it should not be strictly orthogonal to it).
      *
      * Orthogonal complement is an optional parameter, and will be computed
      * if not provided.
@@ -87,21 +112,16 @@ public:
      * Using `bidirectional=true` together with `strategy=brute_force` guarantees
      * with probability=1 that a non-NONE polytope will be returned.
      * `bidirectional` is ignored when `strategy=bin_search`.
+     *
+     * 'length' is an optional output parameter to return the length of the ray until the
+     * intersection. Even if the intersection is NONE, the length will still be returned
+     * as the distance to the intersection with manifold boundary.
      */
-    Polytope sample_ray(const Polytope &p, RandomEngine &re,
-                        ptr<const vec<dvector>> orthogonal_complement = nullptr, bool bidirectional = false) const;
+    Polytope cast_ray(const Polytope &p, const dvector &direction,
+                      ptr<const vec<dvector>> orthogonal_complement = nullptr, bool bidirectional = false,
+                      ftype *length = nullptr) const;
 
-    /**
-     * Get the current ray casting strategy.
-     */
-    RayStrategyType get_strategy() const;
-
-    /**
-     * Set the current ray casting strategy.
-     */
-    void set_strategy(RayStrategyType new_strategy);
-
-    dmatrix get_data() const;
+    const dmatrix& get_data() const;
 
     int get_data_size() const;
 
@@ -122,33 +142,31 @@ public:
 
     void print_validations_info() const;
 
+    Kernel& get_kernel() const;
+
+    RayStrategyType get_strategy() const;
+
+    DataType get_data_type() const;
+
 private:
     RayStrategyType strategy;
+    DataType data_type;
+    mutable ptr<Kernel> kernel;
 
     int n_points = 0;
+    int ambient_dim = 0;
     int data_dim = 0;
     dmatrix points;
 
-    ptr<KDTree> tree;
-
     mutable long long validations_failed = 0;
     mutable long long validations_ok = 0;
-
-    void brute_force(const dvector &ref, const dvector &u, int j0, const IndexSet &ignore,
-                     int *best_j, ftype *best_l, bool bidirectional = true) const;
-    void bin_search(const dvector &ref, const dvector &u, int j0, const IndexSet &ignore,
-                    int *best_j, ftype *best_l) const;
 
     bool validate(const vec<int> &equidistants, const dvector &ref) const;
 
 public:
     const ftype VALIDATION_EPS = static_cast<ftype>(1e-5);
 
-    const int MAX_RETRIES = 10;
-
-    int BIN_SEARCH_NITER = 20;
-    ftype BIN_SEARCH_PARAMETER = static_cast<ftype>(0.5);
-    ftype BIN_SEARCH_EPS = static_cast<ftype>(1e-7);
+    const int MAX_RETRIES = 5;
 
     int VISIBILITY_WALK_MAX_STEPS = 10000000;
 };

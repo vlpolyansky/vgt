@@ -14,6 +14,9 @@ int IndexSet::hash() const {
     return hash_value;
 }
 
+IndexSet::IndexSet() : vec<int>() {
+}
+
 IndexSet::IndexSet(const vec<int> &index_set) : vec<int>(index_set) {
     // assert(!index_set.empty());
 }

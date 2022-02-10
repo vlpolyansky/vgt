@@ -9,7 +9,7 @@ int RandomEngine::rand_int(int n) {
 
 ftype RandomEngine::rand_float() {
     return static_cast<ftype>(re() - RandomEngineType::min()) /
-            static_cast<ftype>(RandomEngineType::max() - RandomEngineType::min());
+           static_cast<ftype>(RandomEngineType::max() - RandomEngineType::min());
 }
 
 ftype RandomEngine::rand_normal() {
@@ -25,7 +25,7 @@ ftype RandomEngine::rand_normal() {
         v = rand_float() * 2.0f - 1.0f;
         s = u * u + v * v;
     } while (s == 0 || s >= 1);
-    ftype t = std::sqrt(-2.0f * std::log(s) / s);
+    ftype t = math::sqrt(-2.0f * math::log(s) / s);
     has_next_rand_normal = true;
     next_rand_normal = v * t;
     return u * t;
@@ -40,7 +40,13 @@ dvector RandomEngine::rand_on_sphere(int ndim) {
     return a;
 }
 
-RandomEngineMultithread::RandomEngineMultithread(int seed) : seed(seed) {}
+RandomEngine::RandomEngineType& RandomEngine::generator() {
+    return re;
+}
+
+RandomEngineMultithread::RandomEngineMultithread(int seed) : seed(seed) {
+    engines.emplace_back(seed);
+}
 
 void RandomEngineMultithread::fix_random_engines() {
     #pragma omp master
@@ -57,4 +63,9 @@ RandomEngine& RandomEngineMultithread::current() {
     int idx = omp_get_thread_num();
     ensure(idx < engines.size(), "Need to `fix_random_engines()` during multithreading");
     return engines[idx];
+}
+
+RandomEngineMultithread::RandomEngineMultithread(const RandomEngine &engine) {
+    engines = {engine};
+    seed = 239;
 }

@@ -6,6 +6,11 @@ KDTree::KDTree(const dmatrix &data, int leaf_len) : data(data), leaf_len(leaf_le
 }
 
 void KDTree::init() {
+    n = data.cols();
+    head = -1;
+    indices = vec<int>();
+    nodes = vec<Node>();
+
     for (int i = 0; i < data.cols(); i++) {
         indices.push_back(i);
     }
@@ -32,10 +37,10 @@ KDTree::pNode KDTree::build_tree(int l, int r, int depth) {
     int best_dim = -1;
     ftype best_spread = -1;
     for (int i = 0; i < d; i++) {
-        ftype mn = data(i, l), mx = data(i, l);
+        ftype mn = data(i, indices[l]), mx = data(i, indices[l]);
         for (int j = l + 1; j <= r; j++) {
-            mn = std::min(mn, data(i, j));
-            mx = std::max(mx, data(i, j));
+            mn = std::min(mn, data(i, indices[j]));
+            mx = std::max(mx, data(i, indices[j]));
         }
         if (mx - mn > best_spread) {
             best_spread = mx - mn;
@@ -94,6 +99,19 @@ void KDTree::find_nn(const dvector &x, KDTree::pNode node, int *best, ftype *bes
                 }
             }
         }
+        for (int index: nodes[node].extra) {
+            if (std::find(ignore.begin(), ignore.end(), index) == ignore.end()) {
+                ftype dst_sqr = (x - data.col(index)).squaredNorm();
+                assert(dst_sqr + 1e-5 >= cur_bin_dist_sqr);
+                if (dst_sqr < *best_dist_sqr && (margin_sqr < 0 || dst_sqr <= margin_sqr)) {
+                    *best_dist_sqr = dst_sqr;
+                    *best = index;
+                    if (margin_sqr >= 0) {
+                        return;
+                    }
+                }
+            }
+        }
         return;
     }
     pNode fst, snd;
@@ -117,5 +135,34 @@ void KDTree::find_nn(const dvector &x, KDTree::pNode node, int *best, ftype *bes
     partial_dist_sqr[nodes[node].dim] = old_partial;
 }
 
+KDTree::pNode KDTree::get_containing_node(const dvector &x) const {
+    pNode node = head;
+    while (node >= 0 && nodes[node].dim >= 0) {
+        node = x[nodes[node].dim] <= nodes[node].m ?
+               nodes[node].left : nodes[node].right;
+    }
+    return node;
+}
+
+void KDTree::update_inserted_points() {
+    ensure(n == indices.size(), "kdtree error #1");
+    for (int i = n; i < data.cols(); i++) {
+        indices.push_back(i);
+        pNode node = get_containing_node(data.col(i));
+        ensure(node >= 0, "kdtree error #2");
+        if (nodes[node].size() >= 2 * leaf_len) {
+//            std::cerr << "Reinitializing KD-tree" << std::endl;
+            return init();
+        }
+        nodes[node].extra.push_back(i);
+    }
+
+    n = data.cols();
+}
+
 KDTree::Node::Node(int lidx, int ridx) : lidx(lidx), ridx(ridx), dim(-1) {}
 KDTree::Node::Node(int dim, ftype m) : dim(dim), m(m) {}
+
+int KDTree::Node::size() {
+    return dim >= 0 ? 0 : (ridx - lidx + 1) + extra.size();
+}

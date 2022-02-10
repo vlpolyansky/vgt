@@ -5,6 +5,8 @@
 
 class IndexSet : public vec<int> {
 public:
+    IndexSet();
+
     IndexSet(const vec<int> &v);
 
     IndexSet(std::initializer_list<int> init);
