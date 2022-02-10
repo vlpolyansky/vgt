@@ -1,0 +1,13 @@
+name: vgt
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.9
+  - cmake
+  - make
+  - cxx-compiler
+  - c-compiler
+  - eigen>=3.4
+  - openmp
+  - zlib
